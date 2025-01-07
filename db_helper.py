@@ -1,13 +1,19 @@
-
+from google.cloud.sql.connector import Connector
 import mysql.connector
-global cnx
+import os
 
-cnx = mysql.connector.connect(
-    host="localhost",
+# Instantiate the connector
+connector = Connector()
+
+# Get credentials (you need to set up authentication for your app on Google Cloud)
+cnx = connector.connect(
+    "secondagent:asia-south2:foood-bot",  # Format: PROJECT_ID:REGION:INSTANCE_ID
+    "mysql",
     user="root",
-    password="priya355484",
+    password="F<Dr*X|};=|`a(3^",
     database="pandeyji_eatery"
 )
+
 
 # Function to call the MySQL stored procedure and insert an order item
 def insert_order_item(food_item, quantity, order_id):
