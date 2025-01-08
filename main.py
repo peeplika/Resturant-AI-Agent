@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -7,11 +6,7 @@ import generic_helper
 
 
 app = FastAPI()
-
 inprogress_orders = {}
-@app.get("/")
-def root():
-    return "heloo priya"
 
 @app.post("/")
 async def handle_request(request: Request):
@@ -147,3 +142,8 @@ def track_order(parameters: dict, session_id: str):
     return JSONResponse(content={
         "fulfillmentText": fulfillment_text
     })
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
