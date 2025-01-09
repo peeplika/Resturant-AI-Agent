@@ -1,5 +1,6 @@
 import mysql.connector
 import os
+from decimal import Decimal
 
 def get_db_connection():
     """
@@ -40,27 +41,59 @@ def insert_order_item(food_item, quantity, order_id):
         int: 1 for success, -1 for failure
     """
     try:
-
         cursor = cnx.cursor()
+
+        # Safely execute queries using parameterized queries
+        cursor.execute("SELECT item_id FROM food_items WHERE name = %s", (food_item,))
+        item_id = cursor.fetchone()
         
-        # Calling the stored procedure
-        cursor.callproc('insert_order_item', (food_item, quantity, order_id))
+        # Check if the food item exists
+        if item_id is None:
+            print("Food item not found.")
+            return -1
+
+        item_id = item_id[0]  # Extract the item_id from the result tuple
+
+        # Get the price for the food item
+        cursor.execute("SELECT price FROM food_items WHERE name = %s", (food_item,))
+        price = cursor.fetchone()
+
+        # Check if price exists
+        if price is None:
+            print("Price for the food item not found.")
+            return -1
+
+        price = price[0]  # Extract the price from the result tuple
+
+        # Calculate total price
         
+        # Convert quantity to Decimal
+        quantity = Decimal(quantity)
+
+        # Now perform the multiplication
+        total_price = price * quantity
+
+
+        # Insert the order item into the orders table
+        cursor.execute("""
+            INSERT INTO orders (order_id, item_id, quantity, total_price)
+            VALUES (%s, %s, %s, %s)
+        """, (order_id, item_id, quantity, total_price))
+
         # Committing the changes
         cnx.commit()
-        
-        # Closing the cursor and connection
+
+        # Closing the cursor
         cursor.close()
 
-        
         print("Order item inserted successfully!")
         return 1
-        
+
     except mysql.connector.Error as err:
         print(f"Error inserting order item: {err}")
         cnx.rollback()
         return -1
-        
+
     except Exception as e:
         print(f"An error occurred: {e}")
         cnx.rollback()
@@ -83,19 +116,39 @@ def insert_order_tracking(order_id, status):
 def get_total_order_price(order_id):
     cursor = cnx.cursor()
 
-    # Executing the SQL query to get the total order price
-    query = f"SELECT get_total_order_price({order_id})"
-    cursor.execute(query)
+    try:
+        # Query to fetch all item_ids for a given order_id
+        query = "SELECT item_id FROM orders WHERE order_id = %s"
+        cursor.execute(query, (order_id,))
+        items = cursor.fetchall()
 
-    # Fetching the result
-    result = cursor.fetchone()[0]
+        if not items:
+            print(f"No items found for order_id {order_id}")
+            return 0
 
-    # Closing the cursor
-    cursor.close()
+        # Create a list of item_ids from the fetched items
+        item_ids = [item[0] for item in items]
 
-    return result
+        # Query to sum the price for all item_ids from the food_items table
+        format_strings = ','.join(['%s'] * len(item_ids))  # Create a format string for the query
+        query = f"SELECT SUM(price) FROM food_items WHERE item_id IN ({format_strings})"
+        cursor.execute(query, tuple(item_ids))
 
-# Function to get the next available order_id
+        # Fetching the result
+        result = cursor.fetchone()[0]
+
+        # Closing the cursor
+        cursor.close()
+
+        return result if result is not None else 0  # Return 0 if no total found
+
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+        cursor.close()
+        return -1
+
+
+# Function to get the next available orer_id
 def get_next_order_id():
     cursor = cnx.cursor()
 
