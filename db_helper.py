@@ -1,51 +1,69 @@
-from google.cloud.sql.connector import Connector
 import mysql.connector
 import os
 
-# Instantiate the connector
-connector = Connector()
-
-# Get credentials (you need to set up authentication for your app on Google Cloud)
-cnx = connector.connect(
-    "secondagent:asia-south2:foood-bot",  # Format: PROJECT_ID:REGION:INSTANCE_ID
-    "mysql",
-    user="root",
-    password="F<Dr*X|};=|`a(3^",
-    database="pandeyji_eatery"
-)
-
-
-# Function to call the MySQL stored procedure and insert an order item
-def insert_order_item(food_item, quantity, order_id):
+def get_db_connection():
+    """
+    Creates a connection to Google Cloud SQL MySQL instance using standard MySQL connector.
+    Make sure your instance is configured to accept external connections or you're running
+    this from a Google Cloud resource with proper permissions.
+    """
     try:
-        cursor = cnx.cursor()
+        connection = mysql.connector.connect(
+            host="34.131.39.31", 
+            database='pandeyji_eatery',
+            user='root',
+            passwd='F<Dr*X|};=|`a(3^',
+        )
+        
+        if connection.is_connected():
+            print("Successfully connected to the database!")
+            return connection
+            
+    except mysql.connector.Error as err:
+        print(f"Error connecting to database: {err}")
+        raise
+try:
+    cnx = get_db_connection()
+except Exception as e:
+    print(f"Connection test failed: {e}")
 
+def insert_order_item(food_item, quantity, order_id):
+    """
+    Inserts an order item into the database using a stored procedure.
+    
+    Args:
+        food_item (str): The name or ID of the food item
+        quantity (int): The quantity ordered
+        order_id (int): The ID of the order
+    
+    Returns:
+        int: 1 for success, -1 for failure
+    """
+    try:
+
+        cursor = cnx.cursor()
+        
         # Calling the stored procedure
         cursor.callproc('insert_order_item', (food_item, quantity, order_id))
-
+        
         # Committing the changes
         cnx.commit()
-
-        # Closing the cursor
+        
+        # Closing the cursor and connection
         cursor.close()
 
+        
         print("Order item inserted successfully!")
-
         return 1
-
+        
     except mysql.connector.Error as err:
         print(f"Error inserting order item: {err}")
-
-        # Rollback changes if necessary
         cnx.rollback()
-
         return -1
-
+        
     except Exception as e:
         print(f"An error occurred: {e}")
-        # Rollback changes if necessary
         cnx.rollback()
-
         return -1
 
 # Function to insert a record into the order_tracking table
